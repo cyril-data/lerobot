@@ -23,6 +23,10 @@ project_root = os.path.dirname(os.path.dirname(__file__))
 print("project_root", project_root)
 sys.path.insert(0, project_root)
 
+sys.path.append("..") 
+
+sys.path.append(".") 
+
 
 import logging
 import time
