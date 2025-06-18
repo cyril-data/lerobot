@@ -13,6 +13,17 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
+import sys
+import os
+
+# Assuming this script is located in /path/to/project/scripts/train.py
+project_root = os.path.dirname(os.path.dirname(__file__))
+
+print("project_root", project_root)
+sys.path.insert(0, project_root)
+
+
 import logging
 import time
 from contextlib import nullcontext
@@ -51,6 +62,8 @@ from lerobot.common.utils.wandb_utils import WandBLogger
 from lerobot.configs import parser
 from lerobot.configs.train import TrainPipelineConfig
 from lerobot.scripts.eval import eval_policy
+import mlflow
+from tqdm import tqdm
 
 
 def update_policy(
@@ -108,6 +121,11 @@ def update_policy(
 @parser.wrap()
 def train(cfg: TrainPipelineConfig):
     cfg.validate()
+
+    mlflow.set_experiment(cfg.output_dir.name)  # Or use a custom name
+    mlflow.start_run(run_name=f"run_{int(time.time())}")
+    mlflow.log_params(cfg.to_dict())
+
     logging.info(pformat(cfg.to_dict()))
 
     if cfg.wandb.enable and cfg.wandb.project:
@@ -200,7 +218,7 @@ def train(cfg: TrainPipelineConfig):
     )
 
     logging.info("Start offline training on a fixed dataset")
-    for _ in range(step, cfg.steps):
+    for _ in tqdm(range(step, cfg.steps), desc="Training", initial=step, total=cfg.steps):
         start_time = time.perf_counter()
         batch = next(dl_iter)
         train_tracker.dataloading_s = time.perf_counter() - start_time
@@ -230,6 +248,10 @@ def train(cfg: TrainPipelineConfig):
 
         if is_log_step:
             logging.info(train_tracker)
+            mlflow.log_metrics(train_tracker.to_dict(), step=step)
+            if output_dict:
+                mlflow.log_metrics({k: float(v) for k, v in output_dict.items()}, step=step)
+
             if wandb_logger:
                 wandb_log_dict = train_tracker.to_dict()
                 if output_dict:
@@ -238,6 +260,8 @@ def train(cfg: TrainPipelineConfig):
             train_tracker.reset_averages()
 
         if cfg.save_checkpoint and is_saving_step:
+            mlflow.log_artifacts(str(checkpoint_dir), artifact_path="checkpoints")
+
             logging.info(f"Checkpoint policy after step {step}")
             checkpoint_dir = get_step_checkpoint_dir(cfg.output_dir, cfg.steps, step)
             save_checkpoint(checkpoint_dir, step, cfg, policy, optimizer, lr_scheduler)
@@ -246,6 +270,10 @@ def train(cfg: TrainPipelineConfig):
                 wandb_logger.log_policy(checkpoint_dir)
 
         if cfg.env and is_eval_step:
+            mlflow.log_metrics(eval_tracker.to_dict(), step=step)
+            for k, v in eval_info["aggregated"].items():
+                mlflow.log_metric(k, float(v), step=step)
+
             step_id = get_step_identifier(step, cfg.steps)
             logging.info(f"Eval policy at step {step}")
             with (
@@ -260,6 +288,8 @@ def train(cfg: TrainPipelineConfig):
                     max_episodes_rendered=4,
                     start_seed=cfg.seed,
                 )
+                for video_path in eval_info["video_paths"]:
+                    mlflow.log_artifact(str(video_path), artifact_path="eval_videos")
 
             eval_metrics = {
                 "avg_sum_reward": AverageMeter("∑rwrd", ":.3f"),
@@ -281,6 +311,8 @@ def train(cfg: TrainPipelineConfig):
     if eval_env:
         eval_env.close()
     logging.info("End of training")
+
+    mlflow.end_run()
 
 
 if __name__ == "__main__":

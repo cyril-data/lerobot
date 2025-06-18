@@ -462,9 +462,7 @@ class LeRobotDataset(torch.utils.data.Dataset):
         self.root.mkdir(exist_ok=True, parents=True)
 
         # Load metadata
-        self.meta = LeRobotDatasetMetadata(
-            self.repo_id, self.root, self.revision, force_cache_sync=force_cache_sync
-        )
+        self.meta = LeRobotDatasetMetadata(self.repo_id, self.root, self.revision, force_cache_sync=force_cache_sync)
         if self.episodes is not None and self.meta._version >= packaging.version.parse("v2.1"):
             episodes_stats = [self.meta.episodes_stats[ep_idx] for ep_idx in self.episodes]
             self.stats = aggregate_stats(episodes_stats)
@@ -539,9 +537,7 @@ class LeRobotDataset(torch.utils.data.Dataset):
             hub_api.upload_folder(**upload_kwargs)
 
         if not hub_api.file_exists(self.repo_id, REPOCARD_NAME, repo_type="dataset", revision=branch):
-            card = create_lerobot_dataset_card(
-                tags=tags, dataset_info=self.meta.info, license=license, **card_kwargs
-            )
+            card = create_lerobot_dataset_card(tags=tags, dataset_info=self.meta.info, license=license, **card_kwargs)
             card.push_to_hub(repo_id=self.repo_id, repo_type="dataset", revision=branch)
 
         if tag_version:
@@ -592,14 +588,26 @@ class LeRobotDataset(torch.utils.data.Dataset):
         return fpaths
 
     def load_hf_dataset(self) -> datasets.Dataset:
+
+        print("\n")
+        print("*" * 80)
+        print("load_hf_dataset self.episodes", self.episodes)
+        print("self.root", self.root)
+
         """hf_dataset contains all the observations, states, actions, rewards, etc."""
         if self.episodes is None:
+
             path = str(self.root / "data")
+
+            print("path", path)
+
             hf_dataset = load_dataset("parquet", data_dir=path, split="train")
         else:
             files = [str(self.root / self.meta.get_data_file_path(ep_idx)) for ep_idx in self.episodes]
             hf_dataset = load_dataset("parquet", data_files=files, split="train")
 
+        print("*" * 80)
+        print("\n")
         # TODO(aliberts): hf_dataset.set_format("torch")
         hf_dataset.set_transform(hf_transform_to_torch)
         return hf_dataset
@@ -750,9 +758,7 @@ class LeRobotDataset(torch.utils.data.Dataset):
         return ep_buffer
 
     def _get_image_file_path(self, episode_index: int, image_key: str, frame_index: int) -> Path:
-        fpath = DEFAULT_IMAGE_PATH.format(
-            image_key=image_key, episode_index=episode_index, frame_index=frame_index
-        )
+        fpath = DEFAULT_IMAGE_PATH.format(image_key=image_key, episode_index=episode_index, frame_index=frame_index)
         return self.root / fpath
 
     def _save_image(self, image: torch.Tensor | np.ndarray | PIL.Image.Image, fpath: Path) -> None:
@@ -952,9 +958,7 @@ class LeRobotDataset(torch.utils.data.Dataset):
             if video_path.is_file():
                 # Skip if video is already encoded. Could be the case when resuming data recording.
                 continue
-            img_dir = self._get_image_file_path(
-                episode_index=episode_index, image_key=key, frame_index=0
-            ).parent
+            img_dir = self._get_image_file_path(episode_index=episode_index, image_key=key, frame_index=0).parent
             encode_video_frames(img_dir, video_path, self.fps, overwrite=True)
 
         return video_paths
@@ -1058,8 +1062,7 @@ class MultiLeRobotDataset(torch.utils.data.Dataset):
         for repo_id, ds in zip(self.repo_ids, self._datasets, strict=True):
             extra_keys = set(ds.features).difference(intersection_features)
             logging.warning(
-                f"keys {extra_keys} of {repo_id} were disabled as they are not contained in all the "
-                "other datasets."
+                f"keys {extra_keys} of {repo_id} were disabled as they are not contained in all the " "other datasets."
             )
             self.disabled_features.update(extra_keys)
 
