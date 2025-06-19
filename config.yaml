@@ -1,0 +1,11 @@
+dataset:
+  repo_id: "run"   
+  root: "../record-maceo-good"
+policy:
+  type: act
+  device: cuda
+  optimizer_lr: 1.e-4
+output_dir: outputs/train/act_so101_test
+job_name: act_so101_test
+wandb :
+  enable: False

@@ -23,9 +23,9 @@ project_root = os.path.dirname(os.path.dirname(__file__))
 print("project_root", project_root)
 sys.path.insert(0, project_root)
 
-sys.path.append("..") 
+sys.path.append("..")
 
-sys.path.append(".") 
+sys.path.append(".")
 
 
 import logging
@@ -61,6 +61,7 @@ from lerobot.common.utils.utils import (
     get_safe_torch_device,
     has_method,
     init_logging,
+    get_unique_output_dir,
 )
 from lerobot.common.utils.wandb_utils import WandBLogger
 from lerobot.configs import parser
@@ -124,6 +125,9 @@ def update_policy(
 
 @parser.wrap()
 def train(cfg: TrainPipelineConfig):
+
+    cfg.output_dir = get_unique_output_dir(cfg.output_dir)
+
     cfg.validate()
 
     mlflow.set_experiment(cfg.output_dir.name)  # Or use a custom name

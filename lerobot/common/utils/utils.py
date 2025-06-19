@@ -30,6 +30,18 @@ import numpy as np
 import torch
 
 
+def get_unique_output_dir(base_dir: Path) -> Path:
+    if not base_dir.exists():
+        return base_dir
+
+    i = 1
+    while True:
+        new_dir = base_dir.with_name(f"{base_dir.name}_{i}")
+        if not new_dir.exists():
+            return new_dir
+        i += 1
+
+
 def none_or_int(value):
     if value == "None":
         return None
@@ -162,9 +174,7 @@ def _relative_path_between(path1: Path, path2: Path) -> Path:
         return path1.relative_to(path2)
     except ValueError:  # most likely because path1 is not a subpath of path2
         common_parts = Path(osp.commonpath([path1, path2])).parts
-        return Path(
-            "/".join([".."] * (len(path2.parts) - len(common_parts)) + list(path1.parts[len(common_parts) :]))
-        )
+        return Path("/".join([".."] * (len(path2.parts) - len(common_parts)) + list(path1.parts[len(common_parts) :])))
 
 
 def print_cuda_memory_usage():

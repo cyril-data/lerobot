@@ -3,6 +3,7 @@ import math
 import logging
 from pathlib import Path
 from pprint import pformat
+import os
 import time
 
 import torch
@@ -15,15 +16,23 @@ from lerobot.common.datasets.factory import make_dataset
 from lerobot.common.datasets.utils import cycle
 from lerobot.common.optim.factory import make_optimizer_and_scheduler
 from lerobot.common.policies.factory import make_policy
-from lerobot.common.utils.train_utils import get_safe_torch_device
+
+from lerobot.common.utils.utils import get_safe_torch_device, get_unique_output_dir
 from lerobot.common.utils.random_utils import set_seed
 from lerobot.common.utils.logging_utils import AverageMeter
 from lerobot.configs import parser
 from lerobot.configs.train import TrainPipelineConfig
+import contextlib
 
 
 @parser.wrap()
 def lr_finder(cfg: TrainPipelineConfig):
+    # print(" cfg.output_dir ", cfg.output_dir)
+
+    cfg.output_dir = get_unique_output_dir(cfg.output_dir)
+    # print(" cfg.output_dir", cfg.output_dir)
+    # os.makedirs(cfg.output_dir, exist_ok=True)
+
     cfg.validate()
 
     logging.info(pformat(cfg.to_dict()))
@@ -42,8 +51,8 @@ def lr_finder(cfg: TrainPipelineConfig):
     dl_iter = cycle(dataloader)
 
     lr_start = 1e-7
-    lr_end = 10
-    num_steps = 100
+    lr_end = 0.1
+    num_steps = 200
     lr_mult = (lr_end / lr_start) ** (1 / num_steps)
 
     for param_group in optimizer.param_groups:
@@ -61,7 +70,10 @@ def lr_finder(cfg: TrainPipelineConfig):
                 batch[key] = batch[key].to(device, non_blocking=True)
 
         optimizer.zero_grad()
-        with torch.autocast(device_type=device.type) if cfg.policy.use_amp else torch.no_grad():
+        use_amp = cfg.policy.use_amp
+        autocast_ctx = torch.autocast(device_type=device.type) if use_amp else contextlib.nullcontext()
+
+        with autocast_ctx:
             loss, _ = policy.forward(batch)
 
         if torch.isnan(loss) or torch.isinf(loss):

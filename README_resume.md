@@ -94,3 +94,4 @@ python -m lerobot.replay \
 ## train
 
 
+python lerobot/scripts/train.py   --dataset.repo_id=${HF_USER}/record-maceo-good   --policy.type=act   --output_dir=outputs/train/act_so101_test   --job_name=act_so101_test   --policy.device=cuda   --wandb.enable=False

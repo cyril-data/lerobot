@@ -76,6 +76,32 @@ class VQBeTSchedulerConfig(LRSchedulerConfig):
         return LambdaLR(optimizer, lr_lambda, -1)
 
 
+@LRSchedulerConfig.register_subclass("onecycle")
+@dataclass
+class OneCycleSchedulerConfig(LRSchedulerConfig):
+    max_lr: float = 1e-3
+    total_steps: int | None = None
+    pct_start: float = 0.3
+    anneal_strategy: str = "cos"  # or "linear"
+    div_factor: float = 25.0
+    final_div_factor: float = 1e4
+    three_phase: bool = False
+
+    def build(self, optimizer: Optimizer, num_training_steps: int) -> LRScheduler:
+        from torch.optim.lr_scheduler import OneCycleLR
+
+        return OneCycleLR(
+            optimizer=optimizer,
+            max_lr=self.max_lr,
+            total_steps=self.total_steps or num_training_steps,
+            pct_start=self.pct_start,
+            anneal_strategy=self.anneal_strategy,
+            div_factor=self.div_factor,
+            final_div_factor=self.final_div_factor,
+            three_phase=self.three_phase,
+        )
+
+
 @LRSchedulerConfig.register_subclass("cosine_decay_with_warmup")
 @dataclass
 class CosineDecayWithWarmupSchedulerConfig(LRSchedulerConfig):
