@@ -225,6 +225,9 @@ def train(cfg: TrainPipelineConfig):
         cfg.batch_size, dataset.num_frames, dataset.num_episodes, train_metrics, initial_step=step
     )
 
+    print("cfg", cfg)
+    print("cfg.steps", cfg.steps)
+
     logging.info("Start offline training on a fixed dataset")
     for _ in tqdm(range(step, cfg.steps), desc="Training", initial=step, total=cfg.steps):
         start_time = time.perf_counter()
@@ -271,9 +274,10 @@ def train(cfg: TrainPipelineConfig):
 
             logging.info(f"Checkpoint policy after step {step}")
             checkpoint_dir = get_step_checkpoint_dir(cfg.output_dir, cfg.steps, step)
-            mlflow.log_artifacts(str(checkpoint_dir), artifact_path="checkpoints")
 
             save_checkpoint(checkpoint_dir, step, cfg, policy, optimizer, lr_scheduler)
+            mlflow.log_artifacts(str(checkpoint_dir), artifact_path="checkpoints")
+
             update_last_checkpoint(checkpoint_dir)
             if wandb_logger:
                 wandb_logger.log_policy(checkpoint_dir)
