@@ -268,10 +268,11 @@ def train(cfg: TrainPipelineConfig):
             train_tracker.reset_averages()
 
         if cfg.save_checkpoint and is_saving_step:
-            mlflow.log_artifacts(str(checkpoint_dir), artifact_path="checkpoints")
 
             logging.info(f"Checkpoint policy after step {step}")
             checkpoint_dir = get_step_checkpoint_dir(cfg.output_dir, cfg.steps, step)
+            mlflow.log_artifacts(str(checkpoint_dir), artifact_path="checkpoints")
+
             save_checkpoint(checkpoint_dir, step, cfg, policy, optimizer, lr_scheduler)
             update_last_checkpoint(checkpoint_dir)
             if wandb_logger:
